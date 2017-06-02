@@ -54,9 +54,11 @@ tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
 tf.app.flags.DEFINE_integer("batch_size", 64,
                             "Batch size to use during training.")
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 2, "Number of layers in the model.")
-tf.app.flags.DEFINE_integer("from_vocab_size", 10000, "English vocabulary size.")
-tf.app.flags.DEFINE_integer("to_vocab_size", 10000, "French vocabulary size.")
+tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
+tf.app.flags.DEFINE_integer("from_vocab_size", 30000, "English vocabulary size.")
+tf.app.flags.DEFINE_integer("to_vocab_size", 30000, "French vocabulary size.")
+tf.app.flags.DEFINE_integer("inter_threads", 4, "inter_op_parallelism_threads")
+tf.app.flags.DEFINE_integer("intra_threads", 16, "intra_op_parallelism_threads")
 tf.app.flags.DEFINE_string("data_dir", "data", "Data directory")
 tf.app.flags.DEFINE_string("train_dir", "train", "Training directory.")
 tf.app.flags.DEFINE_string("from_train_data", "data/from_train.txt", "Training data.")
@@ -78,7 +80,7 @@ FLAGS = tf.app.flags.FLAGS
 
 # We use a number of buckets and pad to the closest one for efficiency.
 # See seq2seq_model.Seq2SeqModel for details of how they work.
-_buckets = [(10, 10), (20, 20), (30, 30), (50, 50)]
+_buckets = [(10, 10), (17, 17), (28, 28), (80, 80)]
 
 
 def read_data(source_path, target_path, max_size=None):
@@ -172,7 +174,11 @@ def train():
       from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_wmt_data(
           FLAGS.data_dir, FLAGS.from_vocab_size, FLAGS.to_vocab_size)
 
-  with tf.Session() as sess:
+  session_conf = tf.ConfigProto(inter_op_parallelism_threads = FLAGS.inter_threads,
+                                  intra_op_parallelism_threads = FLAGS.intra_threads,
+                                  allow_soft_placement=True,
+                                  log_device_placement=True)
+  with tf.Session(config=session_conf) as sess:
     # Create model.
     print("Creating %d layers of %d units." % (FLAGS.num_layers, FLAGS.size))
     model = create_model(sess, False)
@@ -195,7 +201,7 @@ def train():
     step_time, loss = 0.0, 0.0
     current_step = 0
     previous_losses = []
-    while True:
+    for stepNum in range(0, 10000):
       # Choose a bucket according to data distribution. We pick a random number
       # in [0, 1] and use the corresponding interval in train_buckets_scale.
       random_number_01 = np.random.random_sample()
