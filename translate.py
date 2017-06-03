@@ -41,6 +41,7 @@ import logging
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+from tensorflow.python.platform import gfile
 
 import data_utils
 import seq2seq_model
@@ -137,9 +138,11 @@ def create_model(session, forward_only):
       use_lstm=True,
       forward_only=forward_only,
       dtype=dtype)
-  ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
+  if not os.path.exists(FLAGS.train_dir):
+    os.mkdir(FLAGS.train_dir)
+  ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir) # get_checkpoint_state returns checkpoint proto
   if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
-    print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
+    print("Reading model parameters from %s" % ckpt.model_checkpoint_path) # checkpoint proto has path property!
     model.saver.restore(session, ckpt.model_checkpoint_path)
   else:
     print("Created model with fresh parameters.")
@@ -152,12 +155,12 @@ def train():
   to_train = None
   from_dev = None
   to_dev = None
-  if FLAGS.from_train_data and FLAGS.to_train_data:
+  if gfile.Exists(FLAGS.from_train_data) and gfile.Exists(FLAGS.to_train_data):
     from_train_data = FLAGS.from_train_data
     to_train_data = FLAGS.to_train_data
     from_dev_data = from_train_data
     to_dev_data = to_train_data
-    if FLAGS.from_dev_data and FLAGS.to_dev_data:
+    if gfile.Exists(FLAGS.from_dev_data) and gfile.Exists(FLAGS.to_dev_data):
       from_dev_data = FLAGS.from_dev_data
       to_dev_data = FLAGS.to_dev_data
     from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_data(
@@ -171,7 +174,7 @@ def train():
   else:
       # Prepare WMT data.
       print("Preparing WMT data in %s" % FLAGS.data_dir)
-      from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_wmt_data(
+      from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_dialogue_data(
           FLAGS.data_dir, FLAGS.from_vocab_size, FLAGS.to_vocab_size)
 
   session_conf = tf.ConfigProto(inter_op_parallelism_threads = FLAGS.inter_threads,
@@ -184,7 +187,7 @@ def train():
     model = create_model(sess, False)
 
     # Read data into buckets and compute their sizes.
-    print ("Reading development and training data (limit: %d)."
+    print ("Reading development and training data (limit: %d, 0 if no limit)."
            % FLAGS.max_train_data_size)
     dev_set = read_data(from_dev, to_dev)
     train_set = read_data(from_train, to_train, FLAGS.max_train_data_size)

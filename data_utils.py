@@ -71,7 +71,47 @@ def gunzip_file(gz_path, new_path):
       for line in gz_file:
         new_file.write(line)
 
+def get_train_set(directory):
+  train_path = os.path.join(directory, 'Training_Shuffled_Dataset.txt')
+  from_train_path = os.path.join(directory, 'from_train.txt')
+  to_train_path = os.path.join(directory, 'to_train.txt')
+  if not gfile.Exists(train_path):
+    raise ValueError("Data file %s not found.", train_path)
+  fin = open(train_path, 'r')
+  fout1 = open(from_train_path, 'w')
+  fout2 = open(to_train_path, 'w')
+  for line in fin.readlines():
+      sents = line.strip().split('\t')
+      fout1.write(sents[0]+'\n')
+      fout2.write(sents[1]+'\n')
+      fout1.write(sents[1]+'\n')
+      fout2.write(sents[2]+'\n')
+  fin.close()
+  fout1.close()
+  fout2.close()
+  return directory
 
+def get_dev_set(directory):
+  dev_path = os.path.join(directory, 'Validation_Shuffled_Dataset.txt')
+  from_dev_path = os.path.join(directory, 'from_dev.txt')
+  to_dev_path = os.path.join(directory, 'to_dev.txt')
+  if not gfile.Exists(dev_path):
+    raise ValueError("Data file %s not found.", dev_path)
+  fin = open(dev_path, 'r')
+  fout1 = open(from_dev_path, 'w')
+  fout2 = open(to_dev_path, 'w')
+  for line in fin.readlines():
+      sents = line.strip().split('\t')
+      fout1.write(sents[0]+'\n')
+      fout2.write(sents[1]+'\n')
+      fout1.write(sents[1]+'\n')
+      fout2.write(sents[2]+'\n')
+  fin.close()
+  fout1.close()
+  fout2.close()
+  return directory
+
+'''
 def get_wmt_enfr_train_set(directory):
   """Download the WMT en-fr training corpus to directory unless it's there."""
   train_path = os.path.join(directory, "giga-fren.release2.fixed")
@@ -101,7 +141,7 @@ def get_wmt_enfr_dev_set(directory):
       dev_tar.extract(fr_dev_file, directory)
       dev_tar.extract(en_dev_file, directory)
   return dev_path
-
+'''
 
 def basic_tokenizer(sentence):
   """Very basic tokenizer: split the sentence into a list of tokens."""
@@ -244,7 +284,7 @@ def data_to_token_ids(data_path, target_path, vocabulary_path,
           tokens_file.write(" ".join([str(tok) for tok in token_ids]) + "\n")
 
 
-def prepare_wmt_data(data_dir, en_vocabulary_size, fr_vocabulary_size, tokenizer=None):
+def prepare_dialogue_data(data_dir, en_vocabulary_size, fr_vocabulary_size, tokenizer=None):
   """Get WMT data into data_dir, create vocabularies and tokenize data.
 
   Args:
@@ -264,13 +304,12 @@ def prepare_wmt_data(data_dir, en_vocabulary_size, fr_vocabulary_size, tokenizer
       (6) path to the French vocabulary file.
   """
   # Get wmt data to the specified directory.
-  train_path = get_wmt_enfr_train_set(data_dir)
-  dev_path = get_wmt_enfr_dev_set(data_dir)
-
-  from_train_path = train_path + ".en"
-  to_train_path = train_path + ".fr"
-  from_dev_path = dev_path + ".en"
-  to_dev_path = dev_path + ".fr"
+  directory = get_train_set(data_dir)
+  directory = get_dev_set(data_dir)
+  from_train_path = os.path.join(directory, "from_train.txt")
+  to_train_path = os.path.join(directory, "to_train.txt")
+  from_dev_path = os.path.join(directory, "from_dev.txt")
+  to_dev_path = os.path.join(directory, "to_dev.txt")
   return prepare_data(data_dir, from_train_path, to_train_path, from_dev_path, to_dev_path, en_vocabulary_size,
                       fr_vocabulary_size, tokenizer)
 
