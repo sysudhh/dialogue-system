@@ -80,6 +80,15 @@ tf.app.flags.DEFINE_boolean("use_fp16", False,
                             "Train using fp16 instead of fp32.")
 
 FLAGS = tf.app.flags.FLAGS
+FLAGS._parse_flags()
+with open("log.out", "a") as logfile:
+  logfile.write("Parameters:")
+  for attr, value in sorted(FLAGS.__flags.items()):
+    logfile.write("\n{}={}".format(attr.upper(), value))
+  logfile.write("\n")
+
+
+
 
 # We use a number of buckets and pad to the closest one for efficiency.
 # See seq2seq_model.Seq2SeqModel for details of how they work.
@@ -140,6 +149,8 @@ def create_model(session, forward_only):
       use_lstm=True,
       forward_only=forward_only,
       dtype=dtype)
+  if not os.path.exists(FLAGS.train_dir):
+    os.mkdir(FLAGS.train_dir)
   ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
   if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
     print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
