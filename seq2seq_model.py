@@ -56,7 +56,8 @@ class Seq2SeqModel(object):
                use_lstm=False,
                num_samples=512,
                forward_only=False,
-               dtype=tf.float32):
+               dtype=tf.float32,
+               model_config=0):
     """Create the model.
 
     Args:
@@ -79,6 +80,7 @@ class Seq2SeqModel(object):
       num_samples: number of samples for sampled softmax.
       forward_only: if set, we do not construct the backward pass in the model.
       dtype: the data type to use to store internal variables.
+      model_config: configuration of model, 0 (default) for baselien, 1 for attention, 2 for undefined
     """
     self.source_vocab_size = source_vocab_size
     self.target_vocab_size = target_vocab_size
@@ -89,6 +91,7 @@ class Seq2SeqModel(object):
     self.learning_rate_decay_op = self.learning_rate.assign(
         self.learning_rate * learning_rate_decay_factor)
     self.global_step = tf.Variable(0, trainable=False)
+    self.model_config = model_config
 
     # If we use sampled softmax, we need an output projection.
     output_projection = None
@@ -130,7 +133,8 @@ class Seq2SeqModel(object):
 
     # The seq2seq function: we use embedding for the input and attention.
     def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
-      return tf.contrib.legacy_seq2seq.embedding_rnn_seq2seq(
+      if self.model_config == 0:
+          return tf.contrib.legacy_seq2seq.embedding_rnn_seq2seq(
           encoder_inputs,
           decoder_inputs,
           cell,
@@ -140,6 +144,21 @@ class Seq2SeqModel(object):
           output_projection=output_projection,
           feed_previous=do_decode,
           dtype=dtype)
+      elif self.model_config == 1:
+          return tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(
+              encoder_inputs,
+              decoder_inputs,
+              cell,
+              num_encoder_symbols=source_vocab_size,
+              num_decoder_symbols=target_vocab_size,
+              embedding_size=size,
+              output_projection=output_projection,
+              feed_previous=do_decode,
+              dtype=dtype)
+      else:
+          raise ValueError("Model configuration %d undefined.", self.model_config)
+      
+      
 
     # Feeds for inputs.
     self.encoder_inputs = []

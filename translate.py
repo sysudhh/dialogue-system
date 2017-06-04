@@ -49,6 +49,13 @@ import seq2seq_model
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # filter out info and warning log
 tf.logging.set_verbosity(tf.logging.ERROR)
 
+# model
+tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
+tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
+tf.app.flags.DEFINE_integer("from_vocab_size", 30000, "English vocabulary size.")
+tf.app.flags.DEFINE_integer("to_vocab_size", 30000, "French vocabulary size.")
+
+# training
 tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.98,
                           "Learning rate decays by this much.")
@@ -56,12 +63,10 @@ tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
                           "Clip gradients to this norm.")
 tf.app.flags.DEFINE_integer("batch_size", 64,
                             "Batch size to use during training.")
-tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
-tf.app.flags.DEFINE_integer("from_vocab_size", 30000, "English vocabulary size.")
-tf.app.flags.DEFINE_integer("to_vocab_size", 30000, "French vocabulary size.")
 tf.app.flags.DEFINE_integer("inter_threads", 16, "inter_op_parallelism_threads")
 tf.app.flags.DEFINE_integer("intra_threads", 16, "intra_op_parallelism_threads")
+
+# I/O
 tf.app.flags.DEFINE_string("data_dir", "data", "Data directory")
 tf.app.flags.DEFINE_string("train_dir", "train", "Training directory.")
 tf.app.flags.DEFINE_string("from_train_data", "data/from_train.txt", "Training data.")
@@ -70,6 +75,8 @@ tf.app.flags.DEFINE_string("from_dev_data", "data/from_dev.txt", "Training data.
 tf.app.flags.DEFINE_string("to_dev_data", "data/to_dev.txt", "Training data.")
 tf.app.flags.DEFINE_integer("max_train_data_size", 0,
                             "Limit on the size of training data (0: no limit).")
+
+# mode
 tf.app.flags.DEFINE_integer("steps_per_checkpoint", 100,
                             "How many training steps to do per checkpoint.")
 tf.app.flags.DEFINE_boolean("decode", False,
@@ -78,13 +85,24 @@ tf.app.flags.DEFINE_boolean("self_test", False,
                             "Run a self-test if this is set to True.")
 tf.app.flags.DEFINE_boolean("use_fp16", False,
                             "Train using fp16 instead of fp32.")
+tf.app.flags.DEFINE_integer("model_config", 0,
+                            "Model configuration: 0 for seq2seq baseline, 1 for seq2seq with attention, 2 to be defined.")
 
 FLAGS = tf.app.flags.FLAGS
+modelConfiguration = {0: "baseline", 1: "attention", 2: "undefined"} 
+
+# create directories if not existing
+if not os.path.exists(FLAGS.train_dir):
+    os.mkdir(FLAGS.train_dir)
 FLAGS._parse_flags()
-with open("log.out", "a") as logfile:
+logfile_name = "log_"+modelConfiguration[FLAGS.model_config]+".out"
+with open(logfile_name, "a") as logfile:
   logfile.write("Parameters:")
   for attr, value in sorted(FLAGS.__flags.items()):
-    logfile.write("\n{}={}".format(attr.upper(), value))
+    if attr == "model_config":
+      logfile.write("\n{}={}".format(attr.upper(), modelConfiguration[value]))
+    else:
+      logfile.write("\n{}={}".format(attr.upper(), value))
   logfile.write("\n")
 
 
@@ -148,9 +166,8 @@ def create_model(session, forward_only):
       FLAGS.learning_rate_decay_factor,
       use_lstm=True,
       forward_only=forward_only,
-      dtype=dtype)
-  if not os.path.exists(FLAGS.train_dir):
-    os.mkdir(FLAGS.train_dir)
+      dtype=dtype,
+      model_config=FLAGS.model_config)
   ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
   if ckpt and tf.train.checkpoint_exists(ckpt.model_checkpoint_path):
     print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
@@ -236,8 +253,8 @@ def train():
       if current_step % FLAGS.steps_per_checkpoint == 0:
         # Print statistics for the previous epoch.
         perplexity = math.exp(float(loss)) if loss < 300 else float("inf")
-        with open("log.out", "a") as logfile:
-          logfile.write("global step %d learning rate %.4f step-time %.2f perplexity "
+        with open(logfile_name, "a") as logfile:
+          logfile.write("global step %d learning rate %.4f step-time %.2f perplexity (train) "
                  "%.2f\n" % (model.global_step.eval(), model.learning_rate.eval(),
                            step_time, perplexity))
         # Decrease learning rate if no improvement was seen over last 3 times.
@@ -251,7 +268,7 @@ def train():
         # Run evals on development set and print their perplexity.
         for bucket_id in xrange(len(_buckets)):
           if len(dev_set[bucket_id]) == 0:
-            with open("log.out", "a") as logfile:
+            with open(logfile_name, "a") as logfile:
               logfile.write("  eval: empty bucket %d\n" % (bucket_id))
             continue
           encoder_inputs, decoder_inputs, target_weights = model.get_batch(
@@ -260,7 +277,7 @@ def train():
                                        target_weights, bucket_id, True)
           eval_ppx = math.exp(float(eval_loss)) if eval_loss < 300 else float(
               "inf")
-          with open("log.out", "a") as logfile:
+          with open(logfile_name, "a") as logfile:
             logfile.write("  eval: bucket %d perplexity %.2f\n" % (bucket_id, eval_ppx))
         sys.stdout.flush()
 
