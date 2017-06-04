@@ -41,10 +41,13 @@ import logging
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+from tensorflow.python.platform import gfile
 
 import data_utils
 import seq2seq_model
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # filter out info and warning log
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.98,
@@ -152,12 +155,12 @@ def train():
   to_train = None
   from_dev = None
   to_dev = None
-  if FLAGS.from_train_data and FLAGS.to_train_data:
+  if gfile.Exists(FLAGS.from_train_data) and gfile.Exists(FLAGS.to_train_data):
     from_train_data = FLAGS.from_train_data
     to_train_data = FLAGS.to_train_data
     from_dev_data = from_train_data
     to_dev_data = to_train_data
-    if FLAGS.from_dev_data and FLAGS.to_dev_data:
+    if gfile.Exists(FLAGS.from_dev_data) and gfile.Exists(FLAGS.to_dev_data):
       from_dev_data = FLAGS.from_dev_data
       to_dev_data = FLAGS.to_dev_data
     from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_data(
@@ -170,8 +173,8 @@ def train():
         FLAGS.to_vocab_size)
   else:
       # Prepare WMT data.
-      print("Preparing WMT data in %s" % FLAGS.data_dir)
-      from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_wmt_data(
+      print("Preparing dialogue data in %s" % FLAGS.data_dir)
+      from_train, to_train, from_dev, to_dev, _, _ = data_utils.prepare_dialogue_data(
           FLAGS.data_dir, FLAGS.from_vocab_size, FLAGS.to_vocab_size)
 
   session_conf = tf.ConfigProto(inter_op_parallelism_threads = FLAGS.inter_threads,
