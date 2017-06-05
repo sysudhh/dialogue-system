@@ -95,16 +95,17 @@ modelConfiguration = {0: "baseline", 1: "attention", 2: "undefined"}
 # create directories if not existing
 if not os.path.exists(FLAGS.train_dir):
     os.mkdir(FLAGS.train_dir)
-FLAGS._parse_flags()
-logfile_name = "log_"+modelConfiguration[FLAGS.model_config]+".out"
-with open(logfile_name, "a") as logfile:
-  logfile.write("Parameters:")
-  for attr, value in sorted(FLAGS.__flags.items()):
-    if attr == "model_config":
-      logfile.write("\n{}={}".format(attr.upper(), modelConfiguration[value]))
-    else:
-      logfile.write("\n{}={}".format(attr.upper(), value))
-  logfile.write("\n")
+if not FLAGS.decode: # if training, write configuration to log file
+  FLAGS._parse_flags()
+  logfile_name = "log_"+modelConfiguration[FLAGS.model_config]+".out"
+  with open(logfile_name, "a") as logfile:
+    logfile.write("Parameters:")
+    for attr, value in sorted(FLAGS.__flags.items()):
+      if attr == "model_config":
+        logfile.write("\n{}={}".format(attr.upper(), modelConfiguration[value]))
+      else:
+        logfile.write("\n{}={}".format(attr.upper(), value))
+    logfile.write("\n")
 
 
 
