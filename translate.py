@@ -49,6 +49,7 @@ import seq2seq_model
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # filter out info and warning log
 tf.logging.set_verbosity(tf.logging.ERROR)
 
+# TODO: merge two vocabulary
 # model
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
@@ -77,7 +78,7 @@ tf.app.flags.DEFINE_integer("max_train_data_size", 0,
                             "Limit on the size of training data (0: no limit).")
 
 # mode
-tf.app.flags.DEFINE_integer("steps_per_checkpoint", 100,
+tf.app.flags.DEFINE_integer("steps_per_checkpoint", 50,
                             "How many training steps to do per checkpoint.")
 tf.app.flags.DEFINE_boolean("decode", False,
                             "Set to True for interactive decoding.")
