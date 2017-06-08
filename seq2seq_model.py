@@ -26,6 +26,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 import data_utils
+import rnn_wrappers_modern
 
 
 class Seq2SeqModel(object):
@@ -129,7 +130,13 @@ class Seq2SeqModel(object):
         return tf.contrib.rnn.BasicLSTMCell(size)
     cell = single_cell()
     if num_layers > 1:
-        cell = tf.contrib.rnn.MultiRNNCell([single_cell() for _ in range(num_layers)])
+        if self.model_config == 0 or self.model_config == 1:
+            cell = tf.contrib.rnn.MultiRNNCell([single_cell() for _ in range(num_layers)])
+        elif self.model_config == 2: # when model_config == 2, use residual connection for extremely deeper neural network
+        # TODO: ADD BIDIRECTIONAL RNN
+            cell = rnn_wrappers_modern.MultiRNNCell([single_cell() for _ in range(num_layers)])
+        else:
+            raise ValueError("Model configuration %d undefined.", self.model_config)
 
     # The seq2seq function: we use embedding for the input and attention.
     def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
@@ -155,11 +162,20 @@ class Seq2SeqModel(object):
               output_projection=output_projection,
               feed_previous=do_decode,
               dtype=dtype)
+      elif self.model_config == 2:
+          return tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(
+              encoder_inputs,
+              decoder_inputs,
+              cell,
+              num_encoder_symbols=source_vocab_size,
+              num_decoder_symbols=target_vocab_size,
+              embedding_size=size,
+              output_projection=output_projection,
+              feed_previous=do_decode,
+              dtype=dtype)
       else:
           raise ValueError("Model configuration %d undefined.", self.model_config)
       
-      
-
     # Feeds for inputs.
     self.encoder_inputs = []
     self.decoder_inputs = []
