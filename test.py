@@ -82,8 +82,9 @@ if __name__ == '__main__':
         perps.append(perplexity)
       if len(perps) == 2:
         fout.write(str(perps[0])+' '+str(perps[1])+'\n')
+      fout.flush()
       numTested += 1
       if numTested%500 == 0:
-        print(str(numTested)+" triples are tested.\n")
+        print(str(numTested)+" triples are tested.")
   fin.close()
   fout.close()
