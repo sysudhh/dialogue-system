@@ -3,6 +3,7 @@ import math
 import os
 import logging
 from six.moves import xrange
+import datetime
 
 import numpy as np
 import tensorflow as tf
@@ -25,7 +26,8 @@ if __name__ == '__main__':
     fr_vocab, _ = data_utils.initialize_vocabulary("data/vocab30000.to")
     _, rev_fr_vocab = data_utils.initialize_vocabulary("data/vocab30000.to")
 
-    numTested = 0
+    numTested = 0; sumPerp = 0.0; outputCount = 0
+    startTime = datetime.datetime.now()
     for line in fin.readlines():
       sentences = line.strip().split('\t')
       perps = []
@@ -82,9 +84,13 @@ if __name__ == '__main__':
         perps.append(perplexity)
       if len(perps) == 2:
         fout.write(str(perps[0])+' '+str(perps[1])+'\n')
+        sumPerp += perps[0]+perps[1]
+        outputCount += 2
       fout.flush()
       numTested += 1
-      if numTested%500 == 0:
+      if numTested%10 == 0:
         print(str(numTested)+" triples are tested.")
+        print("Average perplexity: "+str(sumPerp/outputCount))
+        print("Time spent: "+str(datetime.datetime.now()-startTime))
   fin.close()
   fout.close()
